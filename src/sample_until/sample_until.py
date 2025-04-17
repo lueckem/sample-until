@@ -17,6 +17,10 @@ def sample_until(
     """
     Run `f()` repeatedly until one of the given conditions is met and collect its outputs.
 
+    The conditions might not be respected exactly,
+    e.g., the elapsed time can be slightly longer than `duration_seconds` and the output list
+    may contain slightly more or less samples than `num_samples`.
+
     Args:
         f: Function to sample.
         duration_seconds: Stop after time elapsed.
@@ -67,8 +71,8 @@ def sample_until(
             target=_worker,
             args=(
                 f,
-                duration_seconds,
                 start_time,
+                duration_seconds,
                 math.ceil(num_samples / num_workers),
                 memory_percentage,
                 output_queue,
@@ -99,21 +103,19 @@ def _sample_until_time_elapsed(
     memory_percentage: float,
 ):
     samples = []
-    print("hi")
     while (
         (time.time() - start_time) < duration
         and len(samples) < num_samples
         and psutil.virtual_memory()[2] / 100.0 < memory_percentage
     ):
-        print("hello")
         samples.append(f())
     return samples
 
 
 def _worker(
     f: Callable[[], Any],
-    duration: float,
     start_time: float,
+    duration: float,
     num_samples: int,
     memory_percentage: float,
     output: mp.Queue,
