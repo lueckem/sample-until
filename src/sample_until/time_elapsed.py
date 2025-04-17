@@ -25,14 +25,10 @@ def sample_until_time_elapsed(
     start_time = time.time()
 
     if num_workers == 1:
-        all_samples = []
-        while (time.time() - start_time) < duration_seconds:
-            all_samples.append(f())
-        return all_samples
+        return _sample_until_time_elapsed(f, duration_seconds, start_time)
 
     manager = mp.Manager()
     output_queue = manager.Queue()
-
     processes = [
         mp.Process(target=_worker, args=(f, duration_seconds, start_time, output_queue))
         for _ in range(num_workers)
@@ -52,13 +48,22 @@ def sample_until_time_elapsed(
     return all_samples
 
 
+def _sample_until_time_elapsed(
+    f: Callable[[], Any],
+    duration: float,
+    start_time: float,
+):
+    samples = []
+    while (time.time() - start_time) < duration:
+        samples.append(f())
+    return samples
+
+
 def _worker(
     f: Callable[[], Any],
     duration: float,
     start_time: float,
     output: mp.Queue,
 ):
-    local_samples = []
-    while (time.time() - start_time) < duration:
-        local_samples.append(f())
+    local_samples = _sample_until_time_elapsed(f, duration, start_time)
     output.put(local_samples)
