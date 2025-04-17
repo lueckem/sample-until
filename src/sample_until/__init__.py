@@ -1,1 +1,1 @@
-from .time_elapsed import sample_until_time_elapsed
+from .sample_until import sample_until
