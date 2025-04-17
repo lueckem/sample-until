@@ -1,0 +1,22 @@
+[project]
+name = "sample-until"
+version = "0.1.0"
+description = "Sample a function until a certain time has elapsed"
+authors = [
+    {name = "Marvin Lücke"}
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+]
+
+[tool.poetry]
+packages = [{include = "sample_until", from = "src"}]
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3.5"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
