@@ -30,7 +30,7 @@ def test_sample_until_time_elapsed_multiple_worker():
 
 def test_sample_until_time_elapsed_errors():
     with pytest.raises(ValueError):
-        samples = sample_until_time_elapsed(sample, duration_seconds=2, num_workers=0)
+        sample_until_time_elapsed(sample, duration_seconds=2, num_workers=0)
 
     with pytest.raises(ValueError):
-        samples = sample_until_time_elapsed(sample, duration_seconds=-1)
+        sample_until_time_elapsed(sample, duration_seconds=-1)
