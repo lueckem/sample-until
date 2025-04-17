@@ -7,7 +7,7 @@ def sample_until_time_elapsed(
     f: Callable[[], Any], duration_seconds: float, num_workers: Optional[int] = None
 ) -> list[Any]:
     """
-    Run `f()` repeatedly for `duration_seconds`.
+    Run `f()` repeatedly for `duration_seconds` and collect its outputs.
 
     Args:
         f: Function to sample.
@@ -21,6 +21,12 @@ def sample_until_time_elapsed(
         num_workers = 1
     if num_workers == -1:
         num_workers = mp.cpu_count()
+
+    # Check if arguments are valid
+    if num_workers < 1:
+        raise ValueError("num_workers has to be >= 1 or -1")
+    if duration_seconds <= 0:
+        raise ValueError("duration_seconds has to be > 0")
 
     start_time = time.time()
 
