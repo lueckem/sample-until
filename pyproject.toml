@@ -14,9 +14,11 @@ dependencies = [
 [tool.poetry]
 packages = [{include = "sample_until", from = "src"}]
 
-
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.5"
+
+[tool.pytest.ini_options]
+filterwarnings = ["ignore::UserWarning"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
