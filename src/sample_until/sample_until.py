@@ -2,6 +2,7 @@ import math
 import multiprocessing as mp
 import sys
 import time
+from itertools import islice
 from typing import Callable, Iterable, Optional, Sized
 from warnings import warn
 
@@ -82,20 +83,38 @@ def sample_until(
     # TODO: f_args for multiprocessing
     manager = mp.Manager()
     output_queue = manager.Queue()
-    processes = [
-        mp.Process(
-            target=_worker,
-            args=(
-                f,
-                start_time,
-                duration_seconds,
-                math.ceil(num_samples / num_workers),
-                memory_percentage,
-                output_queue,
-            ),
-        )
-        for _ in range(num_workers)
-    ]
+
+    if f_args is None:
+        processes = [
+            mp.Process(
+                target=_worker,
+                args=(
+                    f,
+                    start_time,
+                    duration_seconds,
+                    math.ceil(num_samples / num_workers),
+                    memory_percentage,
+                    output_queue,
+                ),
+            )
+            for _ in range(num_workers)
+        ]
+    else:
+        processes = [
+            mp.Process(
+                target=_worker_f_args,
+                args=(
+                    f,
+                    islice(f_args, i, None, num_workers),
+                    start_time,
+                    duration_seconds,
+                    math.ceil(num_samples / num_workers),
+                    memory_percentage,
+                    output_queue,
+                ),
+            )
+            for i in range(num_workers)
+        ]
 
     for p in processes:
         p.start()
@@ -158,5 +177,20 @@ def _worker(
 ):
     local_samples = _sample_until(
         f, start_time, duration, num_samples, memory_percentage
+    )
+    output.put(local_samples)
+
+
+def _worker_f_args(
+    f: Callable,
+    f_args: Iterable,
+    start_time: float,
+    duration: float,
+    num_samples: int,
+    memory_percentage: float,
+    output: mp.Queue,
+):
+    local_samples = _sample_until_f_args(
+        f, f_args, start_time, duration, num_samples, memory_percentage
     )
     output.put(local_samples)

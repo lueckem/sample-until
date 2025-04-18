@@ -1,3 +1,6 @@
+import time
+from itertools import repeat
+
 import pytest
 
 from sample_until import sample_until
@@ -27,3 +30,13 @@ def test_f_args_stop_not_sized(f_args):
 def test_f_args_stop_num_samples(f_args):
     samples = sample_until(sample, f_args=f_args, num_samples=50)
     assert samples == [i for i in range(50)]
+
+
+def test_f_args_multiprocessing_stop_sized(f_args):
+    samples = sample_until(sample, f_args=f_args, num_workers=4)
+    assert set(samples) == set(range(100))  # the order of elements varies
+
+
+def test_f_args_multiprocessing_stop_num_samples(f_args):
+    samples = sample_until(sample, f_args=f_args, num_samples=40, num_workers=4)
+    assert set(samples) == set(range(40))  # the order of elements varies
