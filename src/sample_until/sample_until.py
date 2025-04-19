@@ -9,6 +9,8 @@ from warnings import warn
 
 import psutil
 
+from .utils import _num_required_args
+
 
 def sample_until(
     f: Callable,
@@ -38,7 +40,19 @@ def sample_until(
     Returns:
         List of collected samples.
     """
-    # TODO: Can I check if f accepts an argument and if f_args was provided?
+    # Check if f accepts a valid number of arguments
+    num_args = -1
+    try:
+        num_args = _num_required_args(f)
+    except:
+        warn("Could not determine how many arguments f requires.")
+
+    if num_args == 0 and f_args is not None:
+        raise ValueError("f accepts no arguments but f_args was provided")
+    if num_args == 1 and f_args is None:
+        raise ValueError("f_args has to be provided")
+    if num_args > 1:
+        raise ValueError("f is not allowed to accept more than 1 argument")
 
     # Check that at least one stopping condition is provided
     if duration_seconds is None and num_samples is None and memory_percentage is None:
@@ -85,7 +99,6 @@ def sample_until(
             f, f_args, start_time, duration_seconds, num_samples, memory_percentage
         )
 
-    # TODO: f_args for multiprocessing
     manager = mp.Manager()
     output_queue = manager.Queue()
 

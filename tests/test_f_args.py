@@ -68,3 +68,26 @@ def test_f_args_error_no_stopping_condition():
 
     with pytest.raises(ValueError):
         sample_until(sample, count(10))
+
+
+def test_wrong_number_of_arguments():
+    # f accepts no arguments, but f_args is given
+    def f1():
+        return 1
+
+    with pytest.raises(ValueError):
+        sample_until(f1, f_args=[1, 2, 3], num_samples=10)
+
+    # f accepts one argument, but f_args is not given
+    def f2(x):
+        return x
+
+    with pytest.raises(ValueError):
+        sample_until(f2, num_samples=10)
+
+    # f accepts more than one argument
+    def f3(x, y):
+        return x + y
+
+    with pytest.raises(ValueError):
+        sample_until(f3, f_args=[1, 2, 3], num_samples=10)
