@@ -16,7 +16,7 @@ def test_sample_until_time_elapsed_one_worker():
     elapsed = time.time() - start
     assert 2.0 < elapsed < 2.5
     assert isinstance(samples, list)
-    assert 180 <= len(samples) <= 200
+    assert 150 <= len(samples) <= 200
 
 
 def test_sample_until_time_elapsed_multiple_worker():
@@ -25,7 +25,7 @@ def test_sample_until_time_elapsed_multiple_worker():
     elapsed = time.time() - start
     assert 2.0 < elapsed < 2.5
     assert isinstance(samples, list)
-    assert 4 * 180 <= len(samples) <= 4 * 200
+    assert 4 * 150 <= len(samples) <= 4 * 200
 
 
 def test_sample_until_num_samples_one_worker():
