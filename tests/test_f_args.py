@@ -1,5 +1,5 @@
 import time
-from itertools import repeat
+from itertools import count, cycle, repeat
 
 import pytest
 
@@ -40,3 +40,31 @@ def test_f_args_multiprocessing_stop_sized(f_args):
 def test_f_args_multiprocessing_stop_num_samples(f_args):
     samples = sample_until(sample, f_args=f_args, num_samples=40, num_workers=4)
     assert set(samples) == set(range(40))  # the order of elements varies
+
+
+def test_f_args_all_conditions(f_args):
+    def f(x):
+        time.sleep(0.01)
+        return x
+
+    samples = sample_until(
+        f,
+        f_args=f_args,
+        duration_seconds=2,
+        num_samples=40,
+        memory_percentage=0.95,
+        num_workers=4,
+    )
+    # In this case we know that num_samples is the stopping condition
+    assert set(samples) == set(range(40))  # the order of elements varies
+
+
+def test_f_args_error_no_stopping_condition():
+    with pytest.raises(ValueError):
+        sample_until(sample, repeat(1))
+
+    with pytest.raises(ValueError):
+        sample_until(sample, cycle([1, 2, 3]))
+
+    with pytest.raises(ValueError):
+        sample_until(sample, count(10))

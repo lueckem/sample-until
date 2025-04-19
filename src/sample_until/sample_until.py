@@ -1,3 +1,4 @@
+import itertools
 import math
 import multiprocessing as mp
 import sys
@@ -37,11 +38,15 @@ def sample_until(
     Returns:
         List of collected samples.
     """
+    # TODO: Can I check if f accepts an argument and if f_args was provided?
+
     # Check that at least one stopping condition is provided
     if duration_seconds is None and num_samples is None and memory_percentage is None:
-        # TODO: check against standard infinite iterators like `repeat`
-        if f_args is None:
+        if f_args is None or isinstance(
+            f_args, (itertools.repeat, itertools.cycle, itertools.count)
+        ):
             raise ValueError("provide at least one stopping condition")
+
         if not isinstance(f_args, Sized):
             warn(
                 "Could not determine if `f_args` is finite. Program may run indefinitely."
