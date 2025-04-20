@@ -14,6 +14,7 @@ def sample_until(
     duration_seconds: Optional[float] = None,
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
+    size_mb: Optional[float] = None,
     num_workers: Optional[int] = None,
 ) -> list:
     """
@@ -31,6 +32,7 @@ def sample_until(
         duration_seconds: Stop after time elapsed.
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
+        size_mb: Stop after collected outputs exceed size (in megabytes).
         num_workers: Number of processes (defaults to 1). Pass `-1` for number of cpus.
 
     Returns:
@@ -43,7 +45,7 @@ def sample_until(
     num_workers = _set_num_workers(num_workers)
 
     stopping_conditions = create_stopping_conditions(
-        num_workers, duration_seconds, num_samples, memory_percentage
+        num_workers, duration_seconds, num_samples, memory_percentage, size_mb
     )
 
     # Check that at least one stopping condition is provided

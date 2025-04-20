@@ -1,5 +1,6 @@
+import pickle
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import ceil
 from typing import Optional, Protocol
 
@@ -19,6 +20,7 @@ def create_stopping_conditions(
     duration_seconds: Optional[float],
     num_samples: Optional[int],
     memory_percentage: Optional[float],
+    size_mb: Optional[float],
 ) -> list[StoppingCondition]:
     stopping_conditions = []
     if duration_seconds is not None:
@@ -29,6 +31,10 @@ def create_stopping_conditions(
         stopping_conditions.append(NumSamples(num_samples))
     if memory_percentage is not None:
         stopping_conditions.append(MemoryPercentage(memory_percentage))
+    if size_mb is not None:
+        # divide size between workers
+        size_mb = size_mb / num_workers
+        stopping_conditions.append(OutputSize(size_mb))
     return stopping_conditions
 
 
@@ -84,3 +90,34 @@ class MemoryPercentage:
 
     def stop_message(self) -> str:
         return "Stopped because memory usage exceeded."
+
+
+@dataclass
+class OutputSize:
+    size_mb: float  # size in megabytes
+
+    # estimate of the size of a single sample in megabytes
+    size_estimate: float = field(default=0.0, init=False)
+
+    def __post_init__(self):
+        if self.size_mb <= 0:
+            raise ValueError("size_mb has to be > 0")
+
+    def stop(self, samples: list) -> bool:
+        # TODO: Handle the case that pickle errors
+        if self.size_estimate == 0.0:
+            if len(samples) > 1:
+                self.size_estimate = self._estimate_size(
+                    samples[:2]
+                ) - self._estimate_size(samples[:1])
+                print(self.size_estimate)
+            else:
+                return False
+
+        return self.size_estimate * len(samples) >= self.size_mb
+
+    def stop_message(self) -> str:
+        return "Stopped because output size exceeded."
+
+    def _estimate_size(self, sample):
+        return len(pickle.dumps(sample)) / 1_000_000
