@@ -95,7 +95,7 @@ def sample_until(
     return all_samples
 
 
-def _check_f_valid(f: Callable, f_args: Iterable | None):
+def _check_f_valid(f: Callable, f_args: Optional[Iterable]):
     num_args = -1
     try:
         num_args = num_required_args(f)
@@ -110,7 +110,7 @@ def _check_f_valid(f: Callable, f_args: Iterable | None):
         raise ValueError("f is not allowed to accept more than 1 argument")
 
 
-def _set_num_workers(num_workers: int | None) -> int:
+def _set_num_workers(num_workers: Optional[int]) -> int:
     if num_workers is None:
         return 1
     if num_workers == -1:
@@ -121,7 +121,7 @@ def _set_num_workers(num_workers: int | None) -> int:
 
 
 def _check_stopping_conditions(
-    stopping_conditions: list[StoppingCondition], f_args: Iterable | None
+    stopping_conditions: list[StoppingCondition], f_args: Optional[Iterable]
 ):
     if len(stopping_conditions) == 0:
         if f_args is None or isinstance(
@@ -162,7 +162,7 @@ def _sample_until_f_args(
 
 def _worker(
     f: Callable,
-    f_args: Iterable | None,
+    f_args: Optional[Iterable],
     stopping_conditions: list[StoppingCondition],
     output: mp.Queue,
 ):

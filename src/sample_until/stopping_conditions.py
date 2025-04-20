@@ -1,7 +1,7 @@
 import time
 from dataclasses import dataclass
 from math import ceil
-from typing import Protocol
+from typing import Optional, Protocol
 
 import psutil
 
@@ -16,9 +16,9 @@ class StoppingCondition(Protocol):
 
 def create_stopping_conditions(
     num_workers: int,
-    duration_seconds: float | None,
-    num_samples: int | None,
-    memory_percentage: float | None,
+    duration_seconds: Optional[float],
+    num_samples: Optional[int],
+    memory_percentage: Optional[float],
 ) -> list[StoppingCondition]:
     stopping_conditions = []
     if duration_seconds is not None:
