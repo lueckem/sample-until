@@ -1,15 +1,11 @@
 import itertools
-import math
 import multiprocessing as mp
-import sys
-import time
 from itertools import islice
 from typing import Callable, Iterable, Optional, Sized
 from warnings import warn
 
-import psutil
-
-from .utils import _num_required_args
+from .stopping_conditions import StoppingCondition, create_stopping_conditions, stop
+from .utils import num_required_args
 
 
 def sample_until(
@@ -41,64 +37,25 @@ def sample_until(
         List of collected samples.
     """
     # Check if f accepts a valid number of arguments
-    num_args = -1
-    try:
-        num_args = _num_required_args(f)
-    except:
-        warn("Could not determine how many arguments f requires.")
+    _check_f_valid(f, f_args)
 
-    if num_args == 0 and f_args is not None:
-        raise ValueError("f accepts no arguments but f_args was provided")
-    if num_args == 1 and f_args is None:
-        raise ValueError("f_args has to be provided")
-    if num_args > 1:
-        raise ValueError("f is not allowed to accept more than 1 argument")
+    # Check and set num_workers
+    num_workers = _set_num_workers(num_workers)
+
+    stopping_conditions = create_stopping_conditions(
+        num_workers, duration_seconds, num_samples, memory_percentage
+    )
 
     # Check that at least one stopping condition is provided
-    if duration_seconds is None and num_samples is None and memory_percentage is None:
-        if f_args is None or isinstance(
-            f_args, (itertools.repeat, itertools.cycle, itertools.count)
-        ):
-            raise ValueError("provide at least one stopping condition")
+    _check_stopping_conditions(stopping_conditions, f_args)
 
-        if not isinstance(f_args, Sized):
-            warn(
-                "Could not determine if `f_args` is finite. Program may run indefinitely."
-            )
-
-    # Replace None with large values
-    if duration_seconds is None:
-        duration_seconds = float("inf")
-    if num_samples is None:
-        num_samples = sys.maxsize
-    if memory_percentage is None:
-        memory_percentage = 1.0
-    if num_workers is None:
-        num_workers = 1
-    if num_workers == -1:
-        num_workers = mp.cpu_count()
-
-    # Check for validity
-    if duration_seconds <= 0:
-        raise ValueError("duration_seconds has to be > 0")
-    if num_samples < 0:
-        raise ValueError("num_samples has to be > 0")
-    if memory_percentage < 0 or memory_percentage > 1:
-        raise ValueError("memory_percentage has to be between 0 and 1")
-    if num_workers < 1:
-        raise ValueError("num_workers has to be >= 1 or -1")
-
-    start_time = time.time()
-
+    # no multiprocessing
     if num_workers == 1:
         if f_args is None:
-            return _sample_until(
-                f, start_time, duration_seconds, num_samples, memory_percentage
-            )
-        return _sample_until_f_args(
-            f, f_args, start_time, duration_seconds, num_samples, memory_percentage
-        )
+            return _sample_until(f, stopping_conditions)
+        return _sample_until_f_args(f, f_args, stopping_conditions)
 
+    # multiprocessing
     manager = mp.Manager()
     output_queue = manager.Queue()
 
@@ -106,28 +63,18 @@ def sample_until(
         processes = [
             mp.Process(
                 target=_worker,
-                args=(
-                    f,
-                    start_time,
-                    duration_seconds,
-                    math.ceil(num_samples / num_workers),
-                    memory_percentage,
-                    output_queue,
-                ),
+                args=(f, None, stopping_conditions, output_queue),
             )
             for _ in range(num_workers)
         ]
     else:
         processes = [
             mp.Process(
-                target=_worker_f_args,
+                target=_worker,
                 args=(
                     f,
                     islice(f_args, i, None, num_workers),
-                    start_time,
-                    duration_seconds,
-                    math.ceil(num_samples / num_workers),
-                    memory_percentage,
+                    stopping_conditions,
                     output_queue,
                 ),
             )
@@ -148,67 +95,79 @@ def sample_until(
     return all_samples
 
 
-def _sample_until(
-    f: Callable,
-    start_time: float,
-    duration: float,
-    num_samples: int,
-    memory_percentage: float,
-) -> list:
+def _check_f_valid(f: Callable, f_args: Optional[Iterable]):
+    num_args = -1
+    try:
+        num_args = num_required_args(f)
+    except:
+        warn("Could not determine how many arguments f requires.")
+
+    if num_args == 0 and f_args is not None:
+        raise ValueError("f accepts no arguments but f_args was provided")
+    if num_args == 1 and f_args is None:
+        raise ValueError("f_args has to be provided")
+    if num_args > 1:
+        raise ValueError("f is not allowed to accept more than 1 argument")
+
+
+def _set_num_workers(num_workers: Optional[int]) -> int:
+    if num_workers is None:
+        return 1
+    if num_workers == -1:
+        return mp.cpu_count()
+    if num_workers <= 0:
+        raise ValueError("num_workers has to be >= 1")
+    return num_workers
+
+
+def _check_stopping_conditions(
+    stopping_conditions: list[StoppingCondition], f_args: Optional[Iterable]
+):
+    if len(stopping_conditions) == 0:
+        if f_args is None or isinstance(
+            f_args, (itertools.repeat, itertools.cycle, itertools.count)
+        ):
+            raise ValueError("provide at least one stopping condition")
+
+        if not isinstance(f_args, Sized):
+            warn(
+                "Could not determine if `f_args` is finite. Program may run indefinitely."
+            )
+
+
+def _sample_until(f: Callable, stopping_conditions: list[StoppingCondition]) -> list:
     samples = []
-    while (
-        (time.time() - start_time) < duration
-        and len(samples) < num_samples
-        and psutil.virtual_memory()[2] / 100.0 < memory_percentage
-    ):
+    while True:
         samples.append(f())
-    return samples
+
+        if stop(stopping_conditions, samples):
+            return samples
 
 
 def _sample_until_f_args(
     f: Callable,
     f_args: Iterable,
-    start_time: float,
-    duration: float,
-    num_samples: int,
-    memory_percentage: float,
+    stopping_conditions: list[StoppingCondition],
 ) -> list:
     samples = []
     for a in f_args:
-        if (
-            (time.time() - start_time) >= duration
-            or len(samples) >= num_samples
-            or psutil.virtual_memory()[2] / 100.0 >= memory_percentage
-        ):
-            break
         samples.append(f(a))
+
+        if stop(stopping_conditions, samples):
+            return samples
+
+    print("Stopped because all f_args were used.")
     return samples
 
 
 def _worker(
     f: Callable,
-    start_time: float,
-    duration: float,
-    num_samples: int,
-    memory_percentage: float,
+    f_args: Optional[Iterable],
+    stopping_conditions: list[StoppingCondition],
     output: mp.Queue,
 ):
-    local_samples = _sample_until(
-        f, start_time, duration, num_samples, memory_percentage
-    )
-    output.put(local_samples)
-
-
-def _worker_f_args(
-    f: Callable,
-    f_args: Iterable,
-    start_time: float,
-    duration: float,
-    num_samples: int,
-    memory_percentage: float,
-    output: mp.Queue,
-):
-    local_samples = _sample_until_f_args(
-        f, f_args, start_time, duration, num_samples, memory_percentage
-    )
+    if f_args is None:
+        local_samples = _sample_until(f, stopping_conditions)
+    else:
+        local_samples = _sample_until_f_args(f, f_args, stopping_conditions)
     output.put(local_samples)
