@@ -1,6 +1,7 @@
 import time
 from dataclasses import dataclass
-from typing import Optional, Protocol
+from math import ceil
+from typing import Protocol
 
 import psutil
 
@@ -14,27 +15,29 @@ class StoppingCondition(Protocol):
 
 
 def create_stopping_conditions(
-    duration_seconds: Optional[float] = None,
-    num_samples: Optional[int] = None,
-    memory_percentage: Optional[float] = None,
+    num_workers: int,
+    duration_seconds: float | None,
+    num_samples: int | None,
+    memory_percentage: float | None,
 ) -> list[StoppingCondition]:
     stopping_conditions = []
     if duration_seconds is not None:
         stopping_conditions.append(TimeElapsed(time.time(), duration_seconds))
     if num_samples is not None:
+        # divide samples between workers
+        num_samples = ceil(num_samples / num_workers)
         stopping_conditions.append(NumSamples(num_samples))
     if memory_percentage is not None:
         stopping_conditions.append(MemoryPercentage(memory_percentage))
     return stopping_conditions
 
 
-def stop(
-    stopping_conditions: list[StoppingCondition], samples: list
-) -> tuple[bool, str]:
+def stop(stopping_conditions: list[StoppingCondition], samples: list) -> bool:
     for sc in stopping_conditions:
         if sc.stop(samples):
-            return (True, sc.stop_message())
-    return False, ""
+            print(sc.stop_message())
+            return True
+    return False
 
 
 @dataclass
