@@ -1,6 +1,6 @@
 import pytest
 
-from sample_until.utils import _num_required_args
+from sample_until.utils import num_required_args
 
 
 def f0():
@@ -25,4 +25,4 @@ def f4(x, *args, y=2, **kwargs):
 
 @pytest.mark.parametrize("fun,num_args", [(f0, 0), (f1, 1), (f2, 1), (f3, 2), (f4, 1)])
 def test_num_required_args(fun, num_args):
-    assert _num_required_args(fun) == num_args
+    assert num_required_args(fun) == num_args

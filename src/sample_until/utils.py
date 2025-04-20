@@ -2,7 +2,7 @@ import inspect
 from typing import Callable
 
 
-def _num_required_args(func: Callable) -> int:
+def num_required_args(func: Callable) -> int:
     """Number of required arguments of a function.
 
     Raises an Exception if the signature of `func` cannot be inspected.

@@ -4,13 +4,8 @@ from itertools import islice
 from typing import Callable, Iterable, Optional, Sized
 from warnings import warn
 
-from sample_until.stopping_conditions import (
-    StoppingCondition,
-    create_stopping_conditions,
-    stop,
-)
-
-from .utils import _num_required_args
+from .stopping_conditions import StoppingCondition, create_stopping_conditions, stop
+from .utils import num_required_args
 
 
 def sample_until(
@@ -42,42 +37,17 @@ def sample_until(
         List of collected samples.
     """
     # Check if f accepts a valid number of arguments
-    num_args = -1
-    try:
-        num_args = _num_required_args(f)
-    except:
-        warn("Could not determine how many arguments f requires.")
+    _check_f_valid(f, f_args)
 
-    if num_args == 0 and f_args is not None:
-        raise ValueError("f accepts no arguments but f_args was provided")
-    if num_args == 1 and f_args is None:
-        raise ValueError("f_args has to be provided")
-    if num_args > 1:
-        raise ValueError("f is not allowed to accept more than 1 argument")
-
-    # set num_workers
-    if num_workers is None:
-        num_workers = 1
-    if num_workers == -1:
-        num_workers = mp.cpu_count()
-    if num_workers <= 0:
-        raise ValueError("num_workers has to be >= 1")
+    # Check and set num_workers
+    num_workers = _set_num_workers(num_workers)
 
     stopping_conditions = create_stopping_conditions(
         num_workers, duration_seconds, num_samples, memory_percentage
     )
 
     # Check that at least one stopping condition is provided
-    if len(stopping_conditions) == 0:
-        if f_args is None or isinstance(
-            f_args, (itertools.repeat, itertools.cycle, itertools.count)
-        ):
-            raise ValueError("provide at least one stopping condition")
-
-        if not isinstance(f_args, Sized):
-            warn(
-                "Could not determine if `f_args` is finite. Program may run indefinitely."
-            )
+    _check_stopping_conditions(stopping_conditions, f_args)
 
     # no multiprocessing
     if num_workers == 1:
@@ -93,12 +63,7 @@ def sample_until(
         processes = [
             mp.Process(
                 target=_worker,
-                args=(
-                    f,
-                    None,
-                    stopping_conditions,
-                    output_queue,
-                ),
+                args=(f, None, stopping_conditions, output_queue),
             )
             for _ in range(num_workers)
         ]
@@ -128,6 +93,46 @@ def sample_until(
         all_samples.extend(output_queue.get())
 
     return all_samples
+
+
+def _check_f_valid(f: Callable, f_args: Iterable | None):
+    num_args = -1
+    try:
+        num_args = num_required_args(f)
+    except:
+        warn("Could not determine how many arguments f requires.")
+
+    if num_args == 0 and f_args is not None:
+        raise ValueError("f accepts no arguments but f_args was provided")
+    if num_args == 1 and f_args is None:
+        raise ValueError("f_args has to be provided")
+    if num_args > 1:
+        raise ValueError("f is not allowed to accept more than 1 argument")
+
+
+def _set_num_workers(num_workers: int | None) -> int:
+    if num_workers is None:
+        return 1
+    if num_workers == -1:
+        return mp.cpu_count()
+    if num_workers <= 0:
+        raise ValueError("num_workers has to be >= 1")
+    return num_workers
+
+
+def _check_stopping_conditions(
+    stopping_conditions: list[StoppingCondition], f_args: Iterable | None
+):
+    if len(stopping_conditions) == 0:
+        if f_args is None or isinstance(
+            f_args, (itertools.repeat, itertools.cycle, itertools.count)
+        ):
+            raise ValueError("provide at least one stopping condition")
+
+        if not isinstance(f_args, Sized):
+            warn(
+                "Could not determine if `f_args` is finite. Program may run indefinitely."
+            )
 
 
 def _sample_until(f: Callable, stopping_conditions: list[StoppingCondition]) -> list:
