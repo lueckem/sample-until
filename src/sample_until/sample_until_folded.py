@@ -1,6 +1,5 @@
 import multiprocessing as mp
 from itertools import islice
-from multiprocessing.managers import Namespace
 from typing import Any, Callable, Iterable, Optional
 
 from .stopping_conditions import StoppingCondition, stop
@@ -57,33 +56,37 @@ def sample_until_folded(
 
     # multiprocessing
     manager = mp.Manager()
-    namespace = manager.Namespace()
-    namespace.acc = fold_initial
-    namespace.num_iter = 0
-    lock = mp.Lock()
+    output_queue = manager.Queue()
+    aggregator_queue = manager.Queue()
 
     processes = [
         mp.Process(
             target=_worker,
             args=(
                 f1,
-                fold_function,
                 islice(f_args, i, None, num_workers),
                 stopping_conditions,
-                namespace,
-                lock,
+                output_queue,
             ),
         )
         for i in range(num_workers)
     ]
+
+    aggregator = mp.Process(
+        target=_aggregate,
+        args=(output_queue, aggregator_queue, fold_function, fold_initial, num_workers),
+    )
+    aggregator.start()
 
     for p in processes:
         p.start()
 
     for p in processes:
         p.join()
+        output_queue.put("DONE")
 
-    return namespace.acc, namespace.num_iter
+    aggregator.join()
+    return aggregator_queue.get()
 
 
 def _sample_until_folded(
@@ -106,20 +109,38 @@ def _sample_until_folded(
     return acc, i
 
 
+def _aggregate(
+    output_queue: mp.Queue,
+    aggregator_queue: mp.Queue,
+    fold_function: Callable,
+    fold_initial: Any,
+    num_workers: int,
+):
+    finished_workers = 0
+    acc = fold_initial
+    i = 0
+
+    while finished_workers < num_workers:
+        item = output_queue.get()
+        if item == "DONE":
+            finished_workers += 1
+        else:
+            acc = fold_function(acc, item)
+            i += 1
+
+    aggregator_queue.put((acc, i))
+
+
 def _worker(
     f: Callable,
-    fold_function: Callable,
     f_args: Iterable,
     stopping_conditions: list[StoppingCondition],
-    namespace: Namespace,
-    lock,
+    output_queue: mp.Queue,
 ):
     i = 0
     for a in f_args:
         x = f(a)
-        with lock:
-            namespace.acc = fold_function(namespace.acc, x)
-            namespace.num_iter += 1
+        output_queue.put(x)
         i += 1
 
         if stop(stopping_conditions, i):
