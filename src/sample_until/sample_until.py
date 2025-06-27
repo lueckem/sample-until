@@ -1,7 +1,7 @@
 import itertools
 import multiprocessing as mp
 from itertools import islice
-from typing import Callable, Iterable, Optional, Sized
+from typing import Any, Callable, Iterable, Optional, Sized
 from warnings import warn
 
 from .stopping_conditions import StoppingCondition, create_stopping_conditions, stop
@@ -15,7 +15,9 @@ def sample_until(
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
     num_workers: Optional[int] = None,
-) -> list:
+    fold_function: Optional[Callable] = None,
+    fold_initial: Optional[Any] = None,
+):
     """
     Run `f` repeatedly until one of the given conditions is met and collect its outputs.
 
@@ -24,6 +26,8 @@ def sample_until(
     The stopping conditions might not be respected exactly,
     e.g., the elapsed time can be slightly longer than `duration_seconds` and the output list
     may contain slightly more or less samples than `num_samples`.
+
+    Optionally, ...
 
     Args:
         f: Function to sample.
@@ -34,7 +38,7 @@ def sample_until(
         num_workers: Number of processes (defaults to 1). Pass `-1` for number of cpus.
 
     Returns:
-        List of collected samples.
+        List of collected samples or ...
     """
     # Check if f accepts a valid number of arguments
     _check_f_valid(f, f_args)
@@ -58,7 +62,12 @@ def sample_until(
 
     # no multiprocessing
     if num_workers == 1:
-        return _sample_until(f1, f_args, stopping_conditions)
+        if fold_function is None:
+            return _sample_until(f1, f_args, stopping_conditions)
+        else:
+            return _sample_until_fold(
+                f1, f_args, stopping_conditions, fold_function, fold_initial
+            )
 
     # multiprocessing
     manager = mp.Manager()
@@ -139,12 +148,31 @@ def _sample_until(
     for a in f_args:
         samples.append(f(a))
 
-        if stop(stopping_conditions, samples):
         if stop(stopping_conditions, len(samples)):
             return samples
 
     print("Stopped because all f_args were used.")
     return samples
+
+
+def _sample_until_fold(
+    f: Callable,
+    f_args: Iterable,
+    stopping_conditions: list[StoppingCondition],
+    fold_function: Callable,
+    fold_initial: Any,
+) -> list:
+    acc = fold_initial
+    i = 0
+    for a in f_args:
+        acc = fold_function(acc, f(a))
+        i += 1
+
+        if stop(stopping_conditions, i):
+            return acc
+
+    print("Stopped because all f_args were used.")
+    return acc
 
 
 def _worker(
