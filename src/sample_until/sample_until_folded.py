@@ -88,7 +88,7 @@ def sample_until_folded(
         output_queue.put(DONE)
 
     aggregator.join()
-    return aggregator_queue.get()
+    return aggregator_queue.get_nowait()
 
 
 def _sample_until_folded(
