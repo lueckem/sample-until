@@ -52,7 +52,7 @@ samples = sample_until(f, duration_seconds=10, num_workers=4)
 ```
 When using multiprocessing together with `f_args`, the function arguments are divided between the processes.
 For example, with `num_workers=2` and `f_args = range(100)`, the first process works on `(0, 2, 4, ..., 98)` and the second process on `(1, 3, 5, ..., 99)`.
-The output list will **not** be sorted, i.e., the i-th output does not correspond to the i-th element in `f_args``. 
+The output list will **not** be sorted, i.e., the i-th output does not correspond to the i-th element in `f_args`. 
 If you need to associate the outputs to the inputs, the easiest solution is to define your function to return both:
 ```python
 def g(x: float):
