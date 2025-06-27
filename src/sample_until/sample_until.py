@@ -140,6 +140,7 @@ def _sample_until(
         samples.append(f(a))
 
         if stop(stopping_conditions, samples):
+        if stop(stopping_conditions, len(samples)):
             return samples
 
     print("Stopped because all f_args were used.")

@@ -8,7 +8,7 @@ import psutil
 
 class StoppingCondition(Protocol):
     # Return if the sampling should be stopped
-    def stop(self, samples: list) -> bool: ...
+    def stop(self, num_samples: int) -> bool: ...
 
     # Return a message explaining why the sampling was stopped
     def stop_message(self) -> str: ...
@@ -32,9 +32,9 @@ def create_stopping_conditions(
     return stopping_conditions
 
 
-def stop(stopping_conditions: list[StoppingCondition], samples: list) -> bool:
+def stop(stopping_conditions: list[StoppingCondition], num_samples: int) -> bool:
     for sc in stopping_conditions:
-        if sc.stop(samples):
+        if sc.stop(num_samples):
             print(sc.stop_message())
             return True
     return False
@@ -64,8 +64,8 @@ class NumSamples:
         if self.num_samples <= 0:
             raise ValueError("num_samples has to be > 0")
 
-    def stop(self, samples: list) -> bool:
-        return len(samples) >= self.num_samples
+    def stop(self, num_samples: int) -> bool:
+        return num_samples >= self.num_samples
 
     def stop_message(self) -> str:
         return "Stopped because number of samples reached."
