@@ -1,6 +1,7 @@
 import multiprocessing as mp
 from itertools import islice
 from typing import Any, Callable, Iterable, Optional
+from warnings import warn
 
 from .stopping_conditions import StoppingCondition, stop
 from .utils import check_fold_function, sanitize_inputs
@@ -59,9 +60,8 @@ def sample_until_folded(
         )
 
     # multiprocessing
-    manager = mp.Manager()
-    output_queue = manager.Queue()
-    aggregator_queue = manager.Queue()
+    output_queue = mp.Queue(2 * num_workers)
+    aggregator_queue = mp.Queue()
 
     processes = [
         mp.Process(
@@ -129,8 +129,15 @@ def _aggregate(
     finished_workers = 0
     acc = fold_initial
     i = 0
+    warned = False
 
     while finished_workers < num_workers:
+        if not warned and output_queue.full():
+            warn(
+                "Accumulation queue is full! This indicates that the folding process can not keep up with the incoming samples. The sampling processes have to wait for free slots in the queue."
+            )
+            warned = True
+
         item = output_queue.get()
         if isinstance(item, DoneSignal):
             finished_workers += 1
