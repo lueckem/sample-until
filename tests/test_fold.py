@@ -1,6 +1,6 @@
 import pytest
 
-from sample_until import sample_until
+from sample_until import sample_until_folded
 
 
 def sample(x):
@@ -17,14 +17,12 @@ def fold_sum(acc, x):
 
 
 def test_fold(f_args):
-    out = sample_until(sample, f_args=f_args, fold_function=fold_sum, fold_initial=10)
+    out = sample_until_folded(sample, fold_sum, 10, f_args=f_args)
     assert out == 100 * 99 / 2 + 10
 
 
 def test_fold_stop_num_samples(f_args):
-    out = sample_until(
-        sample, f_args=f_args, num_samples=50, fold_function=fold_sum, fold_initial=10
-    )
+    out = sample_until_folded(sample, fold_sum, 10, f_args=f_args, num_samples=50)
     assert out == 50 * 49 / 2 + 10
 
 
