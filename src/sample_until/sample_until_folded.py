@@ -4,7 +4,7 @@ from multiprocessing.managers import Namespace
 from typing import Any, Callable, Iterable, Optional
 
 from .stopping_conditions import StoppingCondition, stop
-from .utils import sanitize_inputs
+from .utils import check_fold_function, sanitize_inputs
 
 
 def sample_until_folded(
@@ -46,6 +46,9 @@ def sample_until_folded(
     f1, f_args, num_workers, stopping_conditions = sanitize_inputs(
         f, f_args, duration_seconds, num_samples, memory_percentage, num_workers
     )
+
+    # check if it accepts exactly 2 arguments
+    check_fold_function(fold_function)
 
     # no multiprocessing
     if num_workers == 1:

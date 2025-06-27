@@ -36,3 +36,11 @@ def test_fold_multiprocessing_stop_num_samples(f_args):
         sample, fold_sum, 10, f_args=f_args, num_samples=40, num_workers=4
     )
     assert out == (40 * 39 / 2 + 10, 40)
+
+
+def test_fold_invalid_fold_function(f_args):
+    def invalid_fold(acc):
+        return acc
+
+    with pytest.raises(ValueError):
+        sample_until_folded(sample, invalid_fold, 0, f_args=f_args)

@@ -42,6 +42,16 @@ def sanitize_inputs(
     return f1, f_args, num_workers, stopping_conditions
 
 
+def check_fold_function(fold_function: Callable):
+    num_args = 2
+    try:
+        num_args = _num_required_args(fold_function)
+    except:
+        warn("Could not determine how many arguments fold_function requires.")
+    if num_args != 2:
+        raise ValueError("fold_function must accept exactly 2 arguments.")
+
+
 def _check_f_valid(f: Callable, f_args: Optional[Iterable]):
     num_args = -1
     try:
