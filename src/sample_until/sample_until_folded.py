@@ -5,6 +5,8 @@ from typing import Any, Callable, Iterable, Optional
 from .stopping_conditions import StoppingCondition, stop
 from .utils import check_fold_function, sanitize_inputs
 
+DONE = object()
+
 
 def sample_until_folded(
     f: Callable,
@@ -83,7 +85,7 @@ def sample_until_folded(
 
     for p in processes:
         p.join()
-        output_queue.put("DONE")
+        output_queue.put(DONE)
 
     aggregator.join()
     return aggregator_queue.get()
@@ -122,7 +124,7 @@ def _aggregate(
 
     while finished_workers < num_workers:
         item = output_queue.get()
-        if item == "DONE":
+        if item is DONE:
             finished_workers += 1
         else:
             acc = fold_function(acc, item)
