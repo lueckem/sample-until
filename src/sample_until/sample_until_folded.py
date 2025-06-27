@@ -23,8 +23,7 @@ def sample_until_folded(
     The function `f` should either accept no arguments, or exactly one argument that is generated for each sample via `f_args`.
     If `f_args` is finite, running out of arguments is also a stopping condition.
     The stopping conditions might not be respected exactly,
-    e.g., the elapsed time can be slightly longer than `duration_seconds` and the output list
-    may contain slightly more or less samples than `num_samples`.
+    e.g., the elapsed time can be slightly longer than `duration_seconds`.
 
     The outputs of `f` are folded together (accumulated) via the `fold_function` into `acc`,
     i.e., `acc = fold_function(acc, f())` with initial value `acc = fold_initial`.

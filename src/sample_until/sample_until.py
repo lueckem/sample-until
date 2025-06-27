@@ -32,7 +32,7 @@ def sample_until(
         num_workers: Number of processes (defaults to 1). Pass `-1` for number of cpus.
 
     Returns:
-        List of collected samples
+        List of collected samples.
     """
     f1, f_args, num_workers, stopping_conditions = sanitize_inputs(
         f, f_args, duration_seconds, num_samples, memory_percentage, num_workers
