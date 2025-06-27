@@ -5,7 +5,9 @@ from typing import Any, Callable, Iterable, Optional
 from .stopping_conditions import StoppingCondition, stop
 from .utils import check_fold_function, sanitize_inputs
 
-DONE = object()
+
+class DoneSignal:
+    pass
 
 
 def sample_until_folded(
@@ -76,7 +78,13 @@ def sample_until_folded(
 
     aggregator = mp.Process(
         target=_aggregate,
-        args=(output_queue, aggregator_queue, fold_function, fold_initial, num_workers),
+        args=(
+            output_queue,
+            aggregator_queue,
+            fold_function,
+            fold_initial,
+            num_workers,
+        ),
     )
     aggregator.start()
 
@@ -85,7 +93,7 @@ def sample_until_folded(
 
     for p in processes:
         p.join()
-        output_queue.put(DONE)
+        output_queue.put(DoneSignal())
 
     aggregator.join()
     return aggregator_queue.get_nowait()
@@ -124,7 +132,7 @@ def _aggregate(
 
     while finished_workers < num_workers:
         item = output_queue.get()
-        if item is DONE:
+        if isinstance(item, DoneSignal):
             finished_workers += 1
         else:
             acc = fold_function(acc, item)
