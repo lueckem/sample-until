@@ -39,6 +39,13 @@ def sample_until(
     # Check if f accepts a valid number of arguments
     _check_f_valid(f, f_args)
 
+    # Replace f with a function f1 that always accepts one argument
+    if f_args is None:
+        f_args = itertools.repeat(None)
+        f1 = lambda _: f()
+    else:
+        f1 = f
+
     # Check and set num_workers
     num_workers = _set_num_workers(num_workers)
 
@@ -51,35 +58,23 @@ def sample_until(
 
     # no multiprocessing
     if num_workers == 1:
-        if f_args is None:
-            return _sample_until(f, stopping_conditions)
-        return _sample_until_f_args(f, f_args, stopping_conditions)
+        return _sample_until(f1, f_args, stopping_conditions)
 
     # multiprocessing
     manager = mp.Manager()
     output_queue = manager.Queue()
-
-    if f_args is None:
-        processes = [
-            mp.Process(
-                target=_worker,
-                args=(f, None, stopping_conditions, output_queue),
-            )
-            for _ in range(num_workers)
-        ]
-    else:
-        processes = [
-            mp.Process(
-                target=_worker,
-                args=(
-                    f,
-                    islice(f_args, i, None, num_workers),
-                    stopping_conditions,
-                    output_queue,
-                ),
-            )
-            for i in range(num_workers)
-        ]
+    processes = [
+        mp.Process(
+            target=_worker,
+            args=(
+                f1,
+                islice(f_args, i, None, num_workers),
+                stopping_conditions,
+                output_queue,
+            ),
+        )
+        for i in range(num_workers)
+    ]
 
     for p in processes:
         p.start()
@@ -135,16 +130,7 @@ def _check_stopping_conditions(
             )
 
 
-def _sample_until(f: Callable, stopping_conditions: list[StoppingCondition]) -> list:
-    samples = []
-    while True:
-        samples.append(f())
-
-        if stop(stopping_conditions, samples):
-            return samples
-
-
-def _sample_until_f_args(
+def _sample_until(
     f: Callable,
     f_args: Iterable,
     stopping_conditions: list[StoppingCondition],
@@ -162,12 +148,9 @@ def _sample_until_f_args(
 
 def _worker(
     f: Callable,
-    f_args: Optional[Iterable],
+    f_args: Iterable,
     stopping_conditions: list[StoppingCondition],
     output: mp.Queue,
 ):
-    if f_args is None:
-        local_samples = _sample_until(f, stopping_conditions)
-    else:
-        local_samples = _sample_until_f_args(f, f_args, stopping_conditions)
+    local_samples = _sample_until(f, f_args, stopping_conditions)
     output.put(local_samples)
