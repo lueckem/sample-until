@@ -1,5 +1,6 @@
 import multiprocessing as mp
 from itertools import islice
+from multiprocessing.managers import Namespace
 from typing import Any, Callable, Iterable, Optional
 
 from .stopping_conditions import StoppingCondition, stop
@@ -15,7 +16,7 @@ def sample_until_folded(
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
     num_workers: Optional[int] = None,
-) -> Any:
+) -> tuple[Any, int]:
     """
     Run `f` repeatedly until one of the given conditions is met and aggregate its outputs.
 
@@ -40,7 +41,7 @@ def sample_until_folded(
         num_workers: Number of processes (defaults to 1). Pass `-1` for number of cpus.
 
     Returns:
-        Accumulated result `acc`.
+        Accumulated result `acc` and number of iterations.
     """
     f1, f_args, num_workers, stopping_conditions = sanitize_inputs(
         f, f_args, duration_seconds, num_samples, memory_percentage, num_workers
@@ -49,20 +50,47 @@ def sample_until_folded(
     # no multiprocessing
     if num_workers == 1:
         return _sample_until_folded(
-            f1, f_args, stopping_conditions, fold_function, fold_initial
+            f1, fold_function, fold_initial, f_args, stopping_conditions
         )
 
     # multiprocessing
-    return 0
+    manager = mp.Manager()
+    namespace = manager.Namespace()
+    namespace.acc = fold_initial
+    namespace.num_iter = 0
+    lock = mp.Lock()
+
+    processes = [
+        mp.Process(
+            target=_worker,
+            args=(
+                f1,
+                fold_function,
+                islice(f_args, i, None, num_workers),
+                stopping_conditions,
+                namespace,
+                lock,
+            ),
+        )
+        for i in range(num_workers)
+    ]
+
+    for p in processes:
+        p.start()
+
+    for p in processes:
+        p.join()
+
+    return namespace.acc, namespace.num_iter
 
 
 def _sample_until_folded(
     f: Callable,
-    f_args: Iterable,
-    stopping_conditions: list[StoppingCondition],
     fold_function: Callable,
     fold_initial: Any,
-) -> list:
+    f_args: Iterable,
+    stopping_conditions: list[StoppingCondition],
+):
     acc = fold_initial
     i = 0
     for a in f_args:
@@ -70,7 +98,30 @@ def _sample_until_folded(
         i += 1
 
         if stop(stopping_conditions, i):
-            return acc
+            return acc, i
 
     print("Stopped because all f_args were used.")
-    return acc
+    return acc, i
+
+
+def _worker(
+    f: Callable,
+    fold_function: Callable,
+    f_args: Iterable,
+    stopping_conditions: list[StoppingCondition],
+    namespace: Namespace,
+    lock,
+):
+    i = 0
+    for a in f_args:
+        x = f(a)
+        with lock:
+            namespace.acc = fold_function(namespace.acc, x)
+            namespace.num_iter += 1
+        i += 1
+
+        if stop(stopping_conditions, i):
+            return
+
+    print("Stopped because all f_args were used.")
+    return

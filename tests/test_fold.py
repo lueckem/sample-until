@@ -18,22 +18,21 @@ def fold_sum(acc, x):
 
 def test_fold(f_args):
     out = sample_until_folded(sample, fold_sum, 10, f_args=f_args)
-    assert out == 100 * 99 / 2 + 10
+    assert out == (100 * 99 / 2 + 10, 100)
 
 
 def test_fold_stop_num_samples(f_args):
     out = sample_until_folded(sample, fold_sum, 10, f_args=f_args, num_samples=50)
-    assert out == 50 * 49 / 2 + 10
+    assert out == (50 * 49 / 2 + 10, 50)
 
 
-# def test_fold_multiprocessing(f_args):
-#     out = sample_until(
-#         sample, f_args=f_args, fold_function=fold_sum, fold_initial=10, num_workers=4
-#     )
-#     assert out == 100 * 99 / 2 + 10
+def test_fold_multiprocessing(f_args):
+    out = sample_until_folded(sample, fold_sum, 10, f_args=f_args, num_workers=4)
+    assert out == (100 * 99 / 2 + 10, 100)
 
 
-#
-# def test_f_args_multiprocessing_stop_num_samples(f_args):
-#     samples = sample_until(sample, f_args=f_args, num_samples=40, num_workers=4)
-#     assert set(samples) == set(range(40))  # the order of elements varies
+def test_fold_multiprocessing_stop_num_samples(f_args):
+    out = sample_until_folded(
+        sample, fold_sum, 10, f_args=f_args, num_samples=40, num_workers=4
+    )
+    assert out == (40 * 39 / 2 + 10, 40)
