@@ -38,12 +38,11 @@ def test_fold_multiprocessing_stop_num_samples(f_args):
     assert out == (30 * 29 / 2 + 10, 30)
 
 
-# def test_fold_multiprocessing_batches(f_args):
-#     out = sample_until_folded(
-#         sample, fold_sum, 10, f_args=f_args, num_workers=4, batch_size=8
-#     )
-#     assert out == (100 * 99 / 2 + 10, 101)
-#
+def test_fold_multiprocessing_batches(f_args):
+    out = sample_until_folded(
+        sample, fold_sum, 10, f_args=f_args, num_workers=4, batch_size=8
+    )
+    assert out == (100 * 99 / 2 + 10, 100)
 
 
 def test_fold_invalid_fold_function(f_args):
