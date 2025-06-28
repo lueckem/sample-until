@@ -3,7 +3,7 @@ from itertools import islice
 from typing import Any, Callable, Iterable, Optional
 from warnings import warn
 
-from .stopping_conditions import StoppingCondition, stop
+from .stopping_conditions import StoppingCondition, create_stopping_conditions, stop
 from .utils import check_fold_function, sanitize_inputs
 
 
@@ -66,6 +66,10 @@ def sample_until_folded(
 
     # multiprocessing
     num_workers -= 1  # one process is reserved for the aggregator
+    # recreate stopping conditions because of the new worker count
+    stopping_conditions = create_stopping_conditions(
+        num_workers, duration_seconds, num_samples, memory_percentage
+    )
     output_queue = mp.Queue(2 * num_workers)
     aggregator_queue = mp.Queue()
 
