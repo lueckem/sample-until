@@ -9,11 +9,11 @@ from .stopping_conditions import StoppingCondition, create_stopping_conditions
 
 def sanitize_inputs(
     f: Callable,
-    f_args: Optional[Iterable] = None,
-    duration_seconds: Optional[float] = None,
-    num_samples: Optional[int] = None,
-    memory_percentage: Optional[float] = None,
-    num_workers: Optional[int] = None,
+    f_args: Optional[Iterable],
+    duration_seconds: Optional[float],
+    num_samples: Optional[int],
+    memory_percentage: Optional[float],
+    num_workers: int,
 ) -> tuple[Callable, Iterable, int, list[StoppingCondition]]:
     """Sanitize and check inputs, and create stopping conditions.
 
@@ -67,9 +67,7 @@ def _check_f_valid(f: Callable, f_args: Optional[Iterable]):
         raise ValueError("f is not allowed to accept more than 1 argument")
 
 
-def _set_num_workers(num_workers: Optional[int]) -> int:
-    if num_workers is None:
-        return 1
+def _set_num_workers(num_workers: int) -> int:
     if num_workers == -1:
         return mp.cpu_count()
     if num_workers <= 0:

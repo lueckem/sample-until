@@ -5,8 +5,6 @@ from typing import Callable, Iterable, Optional
 from .stopping_conditions import StoppingCondition, stop
 from .utils import sanitize_inputs
 
-# TODO: Set default num_wokrkers = 1?
-
 
 def sample_until(
     f: Callable,
@@ -14,7 +12,7 @@ def sample_until(
     duration_seconds: Optional[float] = None,
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
-    num_workers: Optional[int] = None,
+    num_workers: int = 1,
 ) -> list:
     """
     Run `f` repeatedly until one of the given conditions is met and collect its outputs.
@@ -31,7 +29,7 @@ def sample_until(
         duration_seconds: Stop after time elapsed.
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
-        num_workers: Number of processes (defaults to 1). Pass `-1` for number of cpus.
+        num_workers: Number of processes. Pass `-1` for number of cpus.
 
     Returns:
         List of collected samples.

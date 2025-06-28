@@ -19,7 +19,7 @@ def sample_until_folded(
     duration_seconds: Optional[float] = None,
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
-    num_workers: Optional[int] = None,
+    num_workers: int = 1,
     batch_size: int = 1,
 ) -> tuple[Any, int]:
     """
@@ -45,7 +45,7 @@ def sample_until_folded(
         duration_seconds: Stop after time elapsed.
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
-        num_workers: Number of processes (defaults to 1). Pass `-1` for number of cpus.
+        num_workers: Number of processes. Pass `-1` for number of cpus.
         batch_size: Only if num_workers > 1: send samples to aggregator process in batches.
 
     Returns:
