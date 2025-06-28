@@ -20,6 +20,7 @@ def sample_until_folded(
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
     num_workers: Optional[int] = None,
+    batch_size: int = 1,
 ) -> tuple[Any, int]:
     """
     Run `f` repeatedly until one of the given conditions is met and aggregate its outputs.
@@ -33,6 +34,9 @@ def sample_until_folded(
     i.e., `acc = fold_function(acc, f())` with initial value `acc = fold_initial`.
     For example, to sum up all outputs of `f`, use `fold_function(acc, x) = acc + x`.
 
+    If `num_workers > 1`, there will be 1 aggregator process and `num_workers - 1` sampling processes
+    that send their generated samples to the aggregator process.
+
     Args:
         f: Function to sample.
         fold_function: Function used for accumulating results.
@@ -42,6 +46,7 @@ def sample_until_folded(
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
         num_workers: Number of processes (defaults to 1). Pass `-1` for number of cpus.
+        batch_size: Only if num_workers > 1: send samples to aggregator process in batches.
 
     Returns:
         Accumulated result `acc` and number of iterations.
@@ -60,6 +65,7 @@ def sample_until_folded(
         )
 
     # multiprocessing
+    num_workers -= 1  # one process is reserved for the aggregator
     output_queue = mp.Queue(2 * num_workers)
     aggregator_queue = mp.Queue()
 
@@ -70,6 +76,7 @@ def sample_until_folded(
                 f1,
                 islice(f_args, i, None, num_workers),
                 stopping_conditions,
+                batch_size,
                 output_queue,
             ),
         )
@@ -141,9 +148,10 @@ def _aggregate(
         item = output_queue.get()
         if isinstance(item, DoneSignal):
             finished_workers += 1
-        else:
-            acc = fold_function(acc, item)
-            i += 1
+        else:  # item is a batch of samples
+            i += len(item)
+            for x in item:
+                acc = fold_function(acc, x)
 
     aggregator_queue.put((acc, i))
 
@@ -152,16 +160,24 @@ def _worker(
     f: Callable,
     f_args: Iterable,
     stopping_conditions: list[StoppingCondition],
+    batch_size: int,
     output_queue: mp.Queue,
 ):
     i = 0
+    batch = []
     for a in f_args:
-        x = f(a)
-        output_queue.put(x)
+        batch.append(f(a))
+        if len(batch) >= batch_size:
+            output_queue.put(batch)
+            batch = []
         i += 1
 
         if stop(stopping_conditions, i):
+            if len(batch) > 0:
+                output_queue.put(batch)
             return
 
     print("Stopped because all f_args were used.")
+    if len(batch) > 0:
+        output_queue.put(batch)
     return

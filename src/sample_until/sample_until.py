@@ -5,6 +5,8 @@ from typing import Callable, Iterable, Optional
 from .stopping_conditions import StoppingCondition, stop
 from .utils import sanitize_inputs
 
+# TODO: Set default num_wokrkers = 1?
+
 
 def sample_until(
     f: Callable,
