@@ -11,7 +11,8 @@ Supports parallelized sampling via multiprocessing.
 
 The wrapper function `sample_until_folded` can be configured with the same stopping conditions as above,
 but it accumulates the outputs using a user-defined `fold_function` instead of returning a list of samples.
-(For example, computing the sum over outputs.)
+(For example, computing the sum over the outputs.)
+This is useful when the list of all samples would be too large to fit into memory.
 
 
 ## Example Usage: `sample_until`
@@ -19,8 +20,8 @@ but it accumulates the outputs using a user-defined `fold_function` instead of r
 Your function `f` samples from some random variable or stochastic process:
 ```python
 def f():
-  # ... some complicated stochastic simulation ...
-  return random.random()
+    # ... some complicated stochastic simulation ...
+    return random.random()
 ```
 Acquire samples for 10 seconds:
 ```python
@@ -36,8 +37,8 @@ It is allowed that your function accepts exactly one argument.
 In this case, an Iterable `f_args` has to be provided to generate the input arguments.
 ```python
 def g(x: float):
-  # ... some complicated stochastic simulation ...
-  return x + random.random()
+    # ... some complicated stochastic simulation ...
+    return x + random.random()
 
 samples = sample_until(g, f_args=range(100), duration_seconds=10)
 ```
@@ -56,8 +57,8 @@ The output list will **not** be sorted, i.e., the i-th output does not correspon
 If you need to associate the outputs to the inputs, the easiest solution is to define your function to return both:
 ```python
 def g(x: float):
-  # ... some complicated stochastic simulation ...
-  return x, x + random.random()
+    # ... some complicated stochastic simulation ...
+    return x, x + random.random()
 ```
 
 **Warning**: Be careful when combining multiprocessing and random number generators.
@@ -65,8 +66,8 @@ If you use a rng in your function, each process will compute identical samples!
 This can be solved by using the rng as a function argument, as shown below:
 ```python
 def h(rng):
-  # ... some complicated stochastic simulation ...
-  return rng.random()
+    # ... some complicated stochastic simulation ...
+    return rng.random()
 
 rngs = numpy.random.default_rng(123).spawn(4)
 samples = sample_until(h, f_args=itertools.cycle(rngs), duration_seconds=10, num_workers=4)
@@ -92,6 +93,28 @@ def fold_function(acc, x):
 acc, num_samples = sample_until_folded(f, fold_function, (0, 0), duration_seconds=10, num_samples=100, num_workers=4)
 ```
 
+If using multiprocessing and sampling your function `f` is relatively fast, the aggregator process can sometimes not keep up with the incoming samples. Additionally, a lot of time is spent sending messages between the processes.
+Thus, it is often advantageous to not send every single sample to the aggregator process but send `batch_size` samples at once: 
+```python
+acc, num_samples = sample_until_folded(f, fold_function, 0, duration_seconds=10, num_workers=4, batch_size=32)
+```
+The batch is simply a list of samples that is then iterated by the aggregator.
+If aggregation is still too slow, you can implement the batches yourself using more performant structures, for example numpy arrays:
+
+```python
+def f():
+    # ... some complicated stochastic simulation ...
+    # instead of only one sample, return a batch
+    return np.random.random(size=32)
+
+# compute sum
+def fold_function(acc, x):
+    # `x` is a np.ndarray
+    return acc + np.sum(x)  # quicker than manual iteration
+
+acc, num_samples = sample_until_folded(f, fold_function, 0, duration_seconds=10)
+```
+
 ## Documentation
 ```python
 def sample_until(
@@ -100,7 +123,7 @@ def sample_until(
     duration_seconds: Optional[float] = None,
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
-    num_workers: Optional[int] = None,
+    num_workers: int = 1,
 ) -> list:
     """
     Run `f` repeatedly until one of the given conditions is met and collect its outputs.
@@ -117,7 +140,7 @@ def sample_until(
         duration_seconds: Stop after time elapsed.
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
-        num_workers: Number of processes (defaults to 1). Pass `-1` for number of cpus.
+        num_workers: Number of processes. Pass `-1` for number of cpus.
 
     Returns:
         List of collected samples.
@@ -133,7 +156,8 @@ def sample_until_folded(
     duration_seconds: Optional[float] = None,
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
-    num_workers: Optional[int] = None,
+    num_workers: int = 1,
+    batch_size: int = 1,
 ) -> tuple[Any, int]:
     """
     Run `f` repeatedly until one of the given conditions is met and aggregate its outputs.
@@ -145,7 +169,10 @@ def sample_until_folded(
 
     The outputs of `f` are folded together (accumulated) via the `fold_function` into `acc`,
     i.e., `acc = fold_function(acc, f())` with initial value `acc = fold_initial`.
-    For example, to sum up all outputs of `f`, use `fold_function(acc, x) = acc + x`.
+    For example, to sum up all outputs of `f`, the `fold_function(acc, x)` should return `acc + x`.
+
+    If `num_workers > 1`, there will be 1 aggregator process and `num_workers - 1` sampling processes
+    that send their generated samples to the aggregator process.
 
     Args:
         f: Function to sample.
@@ -155,7 +182,8 @@ def sample_until_folded(
         duration_seconds: Stop after time elapsed.
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
-        num_workers: Number of processes (defaults to 1). Pass `-1` for number of cpus.
+        num_workers: Number of processes. Pass `-1` for number of cpus.
+        batch_size: Only if num_workers > 1: send samples to aggregator process in batches.
 
     Returns:
         Accumulated result `acc` and number of iterations.

@@ -32,7 +32,7 @@ def sample_until_folded(
 
     The outputs of `f` are folded together (accumulated) via the `fold_function` into `acc`,
     i.e., `acc = fold_function(acc, f())` with initial value `acc = fold_initial`.
-    For example, to sum up all outputs of `f`, use `fold_function(acc, x) = acc + x`.
+    For example, to sum up all outputs of `f`, the `fold_function(acc, x)` should return `acc + x`.
 
     If `num_workers > 1`, there will be 1 aggregator process and `num_workers - 1` sampling processes
     that send their generated samples to the aggregator process.
