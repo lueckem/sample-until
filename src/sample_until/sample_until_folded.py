@@ -6,8 +6,6 @@ from warnings import warn
 from .stopping_conditions import StoppingCondition, create_stopping_conditions, stop
 from .utils import check_fold_function, sanitize_inputs
 
-# TODO: Rename to folded_sample_until
-
 # TODO: Call it folding process everywhere, not aggregator process
 
 # TODO: Printing. (Verbose or not verbose)
@@ -19,7 +17,7 @@ class DoneSignal:
     pass
 
 
-def sample_until_folded(
+def folded_sample_until(
     f: Callable,
     fold_function: Callable,
     fold_initial: Any,

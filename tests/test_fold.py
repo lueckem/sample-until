@@ -1,6 +1,6 @@
 import pytest
 
-from sample_until import sample_until_folded
+from sample_until import folded_sample_until
 
 
 def sample(x):
@@ -17,29 +17,29 @@ def fold_sum(acc, x):
 
 
 def test_fold(f_args):
-    out = sample_until_folded(sample, fold_sum, 10, f_args=f_args)
+    out = folded_sample_until(sample, fold_sum, 10, f_args=f_args)
     assert out == (100 * 99 / 2 + 10, 100)
 
 
 def test_fold_stop_num_samples(f_args):
-    out = sample_until_folded(sample, fold_sum, 10, f_args=f_args, num_samples=50)
+    out = folded_sample_until(sample, fold_sum, 10, f_args=f_args, num_samples=50)
     assert out == (50 * 49 / 2 + 10, 50)
 
 
 def test_fold_multiprocessing(f_args):
-    out = sample_until_folded(sample, fold_sum, 10, f_args=f_args, num_workers=4)
+    out = folded_sample_until(sample, fold_sum, 10, f_args=f_args, num_workers=4)
     assert out == (100 * 99 / 2 + 10, 100)
 
 
 def test_fold_multiprocessing_stop_num_samples(f_args):
-    out = sample_until_folded(
+    out = folded_sample_until(
         sample, fold_sum, 10, f_args=f_args, num_samples=30, num_workers=4
     )
     assert out == (30 * 29 / 2 + 10, 30)
 
 
 def test_fold_multiprocessing_batches(f_args):
-    out = sample_until_folded(
+    out = folded_sample_until(
         sample, fold_sum, 10, f_args=f_args, num_workers=4, batch_size=8
     )
     assert out == (100 * 99 / 2 + 10, 100)
@@ -50,4 +50,4 @@ def test_fold_invalid_fold_function(f_args):
         return acc
 
     with pytest.raises(ValueError):
-        sample_until_folded(sample, invalid_fold, 0, f_args=f_args)
+        folded_sample_until(sample, invalid_fold, 0, f_args=f_args)
