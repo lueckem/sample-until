@@ -6,6 +6,7 @@ The wrapper function `sample_until` runs your function repeatedly until
 - a given time has elapsed
 - a given number of iterations has been reached
 - used system memory exceeds a given percentage
+- all provided function arguments have been used
 and collects the outputs in a list.
 Supports parallelized sampling via multiprocessing.
 
@@ -72,7 +73,7 @@ def h(rng):
 rngs = numpy.random.default_rng(123).spawn(4)
 samples = sample_until(h, f_args=itertools.cycle(rngs), duration_seconds=10, num_workers=4)
 ```
-As the 4 processes cycle through the `f_args`, each process uses a seperate `rng`.
+As the 4 processes cycle through the `f_args`, each process uses a separate `rng`.
 
 ## Example Usage: `folded_sample_until`
 
@@ -81,7 +82,8 @@ Sample for 10 seconds and compute the mean:
 def fold_function(acc, x):
     return acc + x
 
-sum_samples, num_samples = folded_sample_until(f, fold_function, 0, duration_seconds=10)
+fold_initial = 0  # start the sum at 0
+sum_samples, num_samples = folded_sample_until(f, fold_function, fold_initial, duration_seconds=10)
 mean = sum_samples / num_samples
 ```
 
