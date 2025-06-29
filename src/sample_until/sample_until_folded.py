@@ -6,8 +6,6 @@ from warnings import warn
 from .stopping_conditions import StoppingCondition, create_stopping_conditions, stop
 from .utils import check_fold_function, sanitize_inputs
 
-# TODO: prettier warnings
-
 
 class DoneSignal:
     pass
@@ -130,9 +128,11 @@ def folded_sample_until(
         if crashed:
             raise RuntimeError("Folding process crashed!")
         if not warned:
-            warn(
-                "Waiting for the folding process to finish folding. If the program does not terminate, check your folding function."
+            warn_msg = (
+                "Waiting for the folding process to finish. "
+                "If the program does not terminate, check your folding function."
             )
+            warn(warn_msg, RuntimeWarning)
             warned = True
 
 
@@ -171,9 +171,12 @@ def _aggregate(
 
     while finished_workers < num_workers:
         if not warned and output_queue.full():
-            warn(
-                "Accumulation queue is full! This indicates that the folding process can not keep up with the incoming samples. The sampling processes have to wait for free slots in the queue."
+            warn_msg = (
+                "Accumulation queue is full! "
+                "This indicates that the folding process can not keep up with the incoming samples. "
+                "The sampling processes have to wait for free slots in the queue."
             )
+            warn(warn_msg, RuntimeWarning)
             warned = True
         item = output_queue.get()
         if isinstance(item, DoneSignal):
