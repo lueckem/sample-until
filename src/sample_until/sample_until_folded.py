@@ -11,7 +11,7 @@ class DoneSignal:
     pass
 
 
-def sample_until_folded(
+def folded_sample_until(
     f: Callable,
     fold_function: Callable,
     fold_initial: Any,
@@ -21,6 +21,7 @@ def sample_until_folded(
     memory_percentage: Optional[float] = None,
     num_workers: int = 1,
     batch_size: int = 1,
+    verbose: bool = False,
 ) -> tuple[Any, int]:
     """
     Run `f` repeatedly until one of the given conditions is met and aggregate its outputs.
@@ -34,8 +35,8 @@ def sample_until_folded(
     i.e., `acc = fold_function(acc, f())` with initial value `acc = fold_initial`.
     For example, to sum up all outputs of `f`, the `fold_function(acc, x)` should return `acc + x`.
 
-    If `num_workers > 1`, there will be 1 aggregator process and `num_workers - 1` sampling processes
-    that send their generated samples to the aggregator process.
+    If `num_workers > 1`, there will be `1` folding process and `num_workers - 1` sampling processes
+    that send their generated samples to the folding process.
 
     Args:
         f: Function to sample.
@@ -46,7 +47,8 @@ def sample_until_folded(
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
         num_workers: Number of processes. Pass `-1` for number of cpus.
-        batch_size: Only if num_workers > 1: send samples to aggregator process in batches.
+        batch_size: Only if num_workers > 1: send samples to folding process in batches.
+        verbose: Print due to which condition the sampling stopped.
 
     Returns:
         Accumulated result `acc` and number of iterations.
@@ -61,7 +63,12 @@ def sample_until_folded(
     # no multiprocessing
     if num_workers == 1:
         return _sample_until_folded(
-            f1, fold_function, fold_initial, f_args, stopping_conditions
+            f1,
+            fold_function,
+            fold_initial,
+            f_args,
+            stopping_conditions,
+            verbose,
         )
 
     # multiprocessing
@@ -82,6 +89,7 @@ def sample_until_folded(
                 stopping_conditions,
                 batch_size,
                 output_queue,
+                verbose,
             ),
         )
         for i in range(num_workers)
@@ -120,9 +128,11 @@ def sample_until_folded(
         if crashed:
             raise RuntimeError("Folding process crashed!")
         if not warned:
-            warn(
-                "Waiting for the folding process to finish folding. If the program does not terminate, check your folding function."
+            warn_msg = (
+                "Waiting for the folding process to finish. "
+                "If the program does not terminate, check your folding function."
             )
+            warn(warn_msg, RuntimeWarning)
             warned = True
 
 
@@ -132,6 +142,7 @@ def _sample_until_folded(
     fold_initial: Any,
     f_args: Iterable,
     stopping_conditions: list[StoppingCondition],
+    verbose: bool,
 ):
     acc = fold_initial
     i = 0
@@ -139,10 +150,11 @@ def _sample_until_folded(
         acc = fold_function(acc, f(a))
         i += 1
 
-        if stop(stopping_conditions, i):
+        if stop(stopping_conditions, i, verbose):
             return acc, i
 
-    print("Stopped because all f_args were used.")
+    if verbose:
+        print("Stopped because all f_args were used.")
     return acc, i
 
 
@@ -160,9 +172,12 @@ def _aggregate(
 
     while finished_workers < num_workers:
         if not warned and output_queue.full():
-            warn(
-                "Accumulation queue is full! This indicates that the folding process can not keep up with the incoming samples. The sampling processes have to wait for free slots in the queue."
+            warn_msg = (
+                "Accumulation queue is full! "
+                "This indicates that the folding process can not keep up with the incoming samples. "
+                "The sampling processes have to wait for free slots in the queue."
             )
+            warn(warn_msg, RuntimeWarning)
             warned = True
         item = output_queue.get()
         if isinstance(item, DoneSignal):
@@ -181,6 +196,7 @@ def _worker(
     stopping_conditions: list[StoppingCondition],
     batch_size: int,
     output_queue: mp.Queue,
+    verbose: bool,
 ):
     i = 0
     batch = []
@@ -191,11 +207,13 @@ def _worker(
             batch = []
         i += 1
 
-        if stop(stopping_conditions, i):
+        if stop(stopping_conditions, i, verbose):
             if len(batch) > 0:
                 output_queue.put(batch)
             return
 
-    print("Stopped because all f_args were used.")
+    if verbose:
+        print("Stopped because all f_args were used.")
+
     if len(batch) > 0:
         output_queue.put(batch)

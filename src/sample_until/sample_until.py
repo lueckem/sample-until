@@ -13,6 +13,7 @@ def sample_until(
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
     num_workers: int = 1,
+    verbose: bool = False,
 ) -> list:
     """
     Run `f` repeatedly until one of the given conditions is met and collect its outputs.
@@ -30,6 +31,7 @@ def sample_until(
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
         num_workers: Number of processes. Pass `-1` for number of cpus.
+        verbose: Print due to which condition the sampling stopped.
 
     Returns:
         List of collected samples.
@@ -40,7 +42,7 @@ def sample_until(
 
     # no multiprocessing
     if num_workers == 1:
-        return _sample_until(f1, f_args, stopping_conditions)
+        return _sample_until(f1, f_args, stopping_conditions, verbose)
 
     # multiprocessing
     manager = mp.Manager()
@@ -53,6 +55,7 @@ def sample_until(
                 islice(f_args, i, None, num_workers),
                 stopping_conditions,
                 output_queue,
+                verbose,
             ),
         )
         for i in range(num_workers)
@@ -76,15 +79,18 @@ def _sample_until(
     f: Callable,
     f_args: Iterable,
     stopping_conditions: list[StoppingCondition],
+    verbose: bool,
 ) -> list:
     samples = []
     for a in f_args:
         samples.append(f(a))
 
-        if stop(stopping_conditions, len(samples)):
+        if stop(stopping_conditions, len(samples), verbose):
             return samples
 
-    print("Stopped because all f_args were used.")
+    if verbose:
+        print("Stopped because all f_args were used.")
+
     return samples
 
 
@@ -93,6 +99,7 @@ def _worker(
     f_args: Iterable,
     stopping_conditions: list[StoppingCondition],
     output: mp.Queue,
+    verbose: bool,
 ):
-    local_samples = _sample_until(f, f_args, stopping_conditions)
+    local_samples = _sample_until(f, f_args, stopping_conditions, verbose)
     output.put(local_samples)

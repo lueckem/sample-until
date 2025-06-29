@@ -9,7 +9,7 @@ The wrapper function `sample_until` runs your function repeatedly until
 and collects the outputs in a list.
 Supports parallelized sampling via multiprocessing.
 
-The wrapper function `sample_until_folded` can be configured with the same stopping conditions as above,
+The wrapper function `folded_sample_until` can be configured with the same stopping conditions as above,
 but it accumulates the outputs using a user-defined `fold_function` instead of returning a list of samples.
 (For example, computing the sum over the outputs.)
 This is useful when the list of all samples would be too large to fit into memory.
@@ -74,14 +74,14 @@ samples = sample_until(h, f_args=itertools.cycle(rngs), duration_seconds=10, num
 ```
 As the 4 processes cycle through the `f_args`, each process uses a seperate `rng`.
 
-## Example Usage: `sample_until_folded`
+## Example Usage: `folded_sample_until`
 
 Sample for 10 seconds and compute the mean:
 ```python
 def fold_function(acc, x):
     return acc + x
 
-sum_samples, num_samples = sample_until_folded(f, fold_function, 0, duration_seconds=10)
+sum_samples, num_samples = folded_sample_until(f, fold_function, 0, duration_seconds=10)
 mean = sum_samples / num_samples
 ```
 
@@ -90,16 +90,16 @@ Stop sampling after either 10 seconds have passed or 100 samples have been acqui
 def fold_function(acc, x):
     return (acc[0] + x, acc[1] + x * x)
 
-acc, num_samples = sample_until_folded(f, fold_function, (0, 0), duration_seconds=10, num_samples=100, num_workers=4)
+acc, num_samples = folded_sample_until(f, fold_function, (0, 0), duration_seconds=10, num_samples=100, num_workers=4)
 ```
 
-If using multiprocessing and sampling your function `f` is relatively fast, the aggregator process can sometimes not keep up with the incoming samples. Additionally, a lot of time is spent sending messages between the processes.
-Thus, it is often advantageous to not send every single sample to the aggregator process but send `batch_size` samples at once: 
+If using multiprocessing and sampling your function `f` is relatively fast, the folding process can sometimes not keep up with the incoming samples. Additionally, a lot of time is spent sending messages between the processes.
+Thus, it is often advantageous to not send every single sample to the folding process but send `batch_size` samples at once: 
 ```python
-acc, num_samples = sample_until_folded(f, fold_function, 0, duration_seconds=10, num_workers=4, batch_size=32)
+acc, num_samples = folded_sample_until(f, fold_function, 0, duration_seconds=10, num_workers=4, batch_size=32)
 ```
-The batch is simply a list of samples that is then iterated by the aggregator.
-If aggregation is still too slow, you can implement the batches yourself using more performant structures, for example numpy arrays:
+The batch is simply a list of samples that is then iterated by the folding process.
+If folding is still too slow, you can implement the batches yourself using more performant structures, for example numpy arrays:
 
 ```python
 def f():
@@ -112,7 +112,7 @@ def fold_function(acc, x):
     # `x` is a np.ndarray
     return acc + np.sum(x)  # quicker than manual iteration
 
-acc, num_samples = sample_until_folded(f, fold_function, 0, duration_seconds=10)
+acc, num_samples = folded_sample_until(f, fold_function, 0, duration_seconds=10)
 ```
 
 ## Documentation
@@ -124,6 +124,7 @@ def sample_until(
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
     num_workers: int = 1,
+    verbose: bool = False,
 ) -> list:
     """
     Run `f` repeatedly until one of the given conditions is met and collect its outputs.
@@ -141,6 +142,7 @@ def sample_until(
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
         num_workers: Number of processes. Pass `-1` for number of cpus.
+        verbose: Print due to which condition the sampling stopped.
 
     Returns:
         List of collected samples.
@@ -148,7 +150,7 @@ def sample_until(
 ```
 
 ```python
-def sample_until_folded(
+def folded_sample_until(
     f: Callable,
     fold_function: Callable,
     fold_initial: Any,
@@ -158,6 +160,7 @@ def sample_until_folded(
     memory_percentage: Optional[float] = None,
     num_workers: int = 1,
     batch_size: int = 1,
+    verbose: bool = False,
 ) -> tuple[Any, int]:
     """
     Run `f` repeatedly until one of the given conditions is met and aggregate its outputs.
@@ -171,8 +174,8 @@ def sample_until_folded(
     i.e., `acc = fold_function(acc, f())` with initial value `acc = fold_initial`.
     For example, to sum up all outputs of `f`, the `fold_function(acc, x)` should return `acc + x`.
 
-    If `num_workers > 1`, there will be 1 aggregator process and `num_workers - 1` sampling processes
-    that send their generated samples to the aggregator process.
+    If `num_workers > 1`, there will be `1` folding process and `num_workers - 1` sampling processes
+    that send their generated samples to the folding process.
 
     Args:
         f: Function to sample.
@@ -183,7 +186,8 @@ def sample_until_folded(
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
         num_workers: Number of processes. Pass `-1` for number of cpus.
-        batch_size: Only if num_workers > 1: send samples to aggregator process in batches.
+        batch_size: Only if num_workers > 1: send samples to folding process in batches.
+        verbose: Print due to which condition the sampling stopped.
 
     Returns:
         Accumulated result `acc` and number of iterations.

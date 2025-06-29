@@ -32,10 +32,15 @@ def create_stopping_conditions(
     return stopping_conditions
 
 
-def stop(stopping_conditions: list[StoppingCondition], num_samples: int) -> bool:
+def stop(
+    stopping_conditions: list[StoppingCondition],
+    num_samples: int,
+    verbose: bool = False,
+) -> bool:
     for sc in stopping_conditions:
         if sc.stop(num_samples):
-            print(sc.stop_message())
+            if verbose:
+                print(sc.stop_message())
             return True
     return False
 
