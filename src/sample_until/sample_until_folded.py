@@ -153,7 +153,8 @@ def _sample_until_folded(
         if stop(stopping_conditions, i, verbose):
             return acc, i
 
-    print("Stopped because all f_args were used.")
+    if verbose:
+        print("Stopped because all f_args were used.")
     return acc, i
 
 
@@ -211,6 +212,8 @@ def _worker(
                 output_queue.put(batch)
             return
 
-    print("Stopped because all f_args were used.")
+    if verbose:
+        print("Stopped because all f_args were used.")
+
     if len(batch) > 0:
         output_queue.put(batch)
