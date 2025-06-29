@@ -93,13 +93,13 @@ def fold_function(acc, x):
 acc, num_samples = folded_sample_until(f, fold_function, (0, 0), duration_seconds=10, num_samples=100, num_workers=4)
 ```
 
-If using multiprocessing and sampling your function `f` is relatively fast, the aggregator process can sometimes not keep up with the incoming samples. Additionally, a lot of time is spent sending messages between the processes.
-Thus, it is often advantageous to not send every single sample to the aggregator process but send `batch_size` samples at once: 
+If using multiprocessing and sampling your function `f` is relatively fast, the folding process can sometimes not keep up with the incoming samples. Additionally, a lot of time is spent sending messages between the processes.
+Thus, it is often advantageous to not send every single sample to the folding process but send `batch_size` samples at once: 
 ```python
 acc, num_samples = folded_sample_until(f, fold_function, 0, duration_seconds=10, num_workers=4, batch_size=32)
 ```
-The batch is simply a list of samples that is then iterated by the aggregator.
-If aggregation is still too slow, you can implement the batches yourself using more performant structures, for example numpy arrays:
+The batch is simply a list of samples that is then iterated by the folding process.
+If folding is still too slow, you can implement the batches yourself using more performant structures, for example numpy arrays:
 
 ```python
 def f():
@@ -171,8 +171,8 @@ def folded_sample_until(
     i.e., `acc = fold_function(acc, f())` with initial value `acc = fold_initial`.
     For example, to sum up all outputs of `f`, the `fold_function(acc, x)` should return `acc + x`.
 
-    If `num_workers > 1`, there will be 1 aggregator process and `num_workers - 1` sampling processes
-    that send their generated samples to the aggregator process.
+    If `num_workers > 1`, there will be `1` folding process and `num_workers - 1` sampling processes
+    that send their generated samples to the folding process.
 
     Args:
         f: Function to sample.
@@ -183,7 +183,7 @@ def folded_sample_until(
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
         num_workers: Number of processes. Pass `-1` for number of cpus.
-        batch_size: Only if num_workers > 1: send samples to aggregator process in batches.
+        batch_size: Only if num_workers > 1: send samples to folding process in batches.
 
     Returns:
         Accumulated result `acc` and number of iterations.

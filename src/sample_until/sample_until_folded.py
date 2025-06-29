@@ -6,8 +6,6 @@ from warnings import warn
 from .stopping_conditions import StoppingCondition, create_stopping_conditions, stop
 from .utils import check_fold_function, sanitize_inputs
 
-# TODO: Call it folding process everywhere, not aggregator process
-
 # TODO: Printing. (Verbose or not verbose)
 
 # TODO: prettier warnings
@@ -40,8 +38,8 @@ def folded_sample_until(
     i.e., `acc = fold_function(acc, f())` with initial value `acc = fold_initial`.
     For example, to sum up all outputs of `f`, the `fold_function(acc, x)` should return `acc + x`.
 
-    If `num_workers > 1`, there will be 1 aggregator process and `num_workers - 1` sampling processes
-    that send their generated samples to the aggregator process.
+    If `num_workers > 1`, there will be `1` folding process and `num_workers - 1` sampling processes
+    that send their generated samples to the folding process.
 
     Args:
         f: Function to sample.
@@ -52,7 +50,7 @@ def folded_sample_until(
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
         num_workers: Number of processes. Pass `-1` for number of cpus.
-        batch_size: Only if num_workers > 1: send samples to aggregator process in batches.
+        batch_size: Only if num_workers > 1: send samples to folding process in batches.
 
     Returns:
         Accumulated result `acc` and number of iterations.
