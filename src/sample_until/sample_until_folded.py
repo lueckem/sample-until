@@ -106,8 +106,24 @@ def sample_until_folded(
         p.join()
         output_queue.put(DoneSignal())
 
-    aggregator.join()
-    return aggregator_queue.get_nowait()
+    # get output from aggregation process
+    while True:
+        crashed = False
+        warned = False
+        try:
+            output = aggregator_queue.get(timeout=20)
+            aggregator.join()
+            return output
+        except:
+            if not aggregator.is_alive():
+                crashed = True
+        if crashed:
+            raise RuntimeError("Folding process crashed!")
+        if not warned:
+            warn(
+                "Waiting for the folding process to finish folding. If the program does not terminate, check your folding function."
+            )
+            warned = True
 
 
 def _sample_until_folded(
@@ -148,7 +164,6 @@ def _aggregate(
                 "Accumulation queue is full! This indicates that the folding process can not keep up with the incoming samples. The sampling processes have to wait for free slots in the queue."
             )
             warned = True
-
         item = output_queue.get()
         if isinstance(item, DoneSignal):
             finished_workers += 1
@@ -184,4 +199,3 @@ def _worker(
     print("Stopped because all f_args were used.")
     if len(batch) > 0:
         output_queue.put(batch)
-    return
