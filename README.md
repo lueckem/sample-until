@@ -124,6 +124,7 @@ def sample_until(
     num_samples: Optional[int] = None,
     memory_percentage: Optional[float] = None,
     num_workers: int = 1,
+    verbose: bool = False,
 ) -> list:
     """
     Run `f` repeatedly until one of the given conditions is met and collect its outputs.
@@ -141,6 +142,7 @@ def sample_until(
         num_samples: Stop after number of samples acquired.
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
         num_workers: Number of processes. Pass `-1` for number of cpus.
+        verbose: Print due to which condition the sampling stopped.
 
     Returns:
         List of collected samples.
@@ -158,6 +160,7 @@ def folded_sample_until(
     memory_percentage: Optional[float] = None,
     num_workers: int = 1,
     batch_size: int = 1,
+    verbose: bool = False,
 ) -> tuple[Any, int]:
     """
     Run `f` repeatedly until one of the given conditions is met and aggregate its outputs.
@@ -184,6 +187,7 @@ def folded_sample_until(
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
         num_workers: Number of processes. Pass `-1` for number of cpus.
         batch_size: Only if num_workers > 1: send samples to folding process in batches.
+        verbose: Print due to which condition the sampling stopped.
 
     Returns:
         Accumulated result `acc` and number of iterations.

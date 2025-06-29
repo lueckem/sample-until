@@ -6,8 +6,6 @@ from warnings import warn
 from .stopping_conditions import StoppingCondition, create_stopping_conditions, stop
 from .utils import check_fold_function, sanitize_inputs
 
-# TODO: Printing. (Verbose or not verbose)
-
 # TODO: prettier warnings
 
 
@@ -25,6 +23,7 @@ def folded_sample_until(
     memory_percentage: Optional[float] = None,
     num_workers: int = 1,
     batch_size: int = 1,
+    verbose: bool = False,
 ) -> tuple[Any, int]:
     """
     Run `f` repeatedly until one of the given conditions is met and aggregate its outputs.
@@ -51,6 +50,7 @@ def folded_sample_until(
         memory_percentage: Stop after system memory exceeds percentage, e.g., `0.8`.
         num_workers: Number of processes. Pass `-1` for number of cpus.
         batch_size: Only if num_workers > 1: send samples to folding process in batches.
+        verbose: Print due to which condition the sampling stopped.
 
     Returns:
         Accumulated result `acc` and number of iterations.
@@ -65,7 +65,12 @@ def folded_sample_until(
     # no multiprocessing
     if num_workers == 1:
         return _sample_until_folded(
-            f1, fold_function, fold_initial, f_args, stopping_conditions
+            f1,
+            fold_function,
+            fold_initial,
+            f_args,
+            stopping_conditions,
+            verbose,
         )
 
     # multiprocessing
@@ -86,6 +91,7 @@ def folded_sample_until(
                 stopping_conditions,
                 batch_size,
                 output_queue,
+                verbose,
             ),
         )
         for i in range(num_workers)
@@ -136,6 +142,7 @@ def _sample_until_folded(
     fold_initial: Any,
     f_args: Iterable,
     stopping_conditions: list[StoppingCondition],
+    verbose: bool,
 ):
     acc = fold_initial
     i = 0
@@ -143,7 +150,7 @@ def _sample_until_folded(
         acc = fold_function(acc, f(a))
         i += 1
 
-        if stop(stopping_conditions, i):
+        if stop(stopping_conditions, i, verbose):
             return acc, i
 
     print("Stopped because all f_args were used.")
@@ -185,6 +192,7 @@ def _worker(
     stopping_conditions: list[StoppingCondition],
     batch_size: int,
     output_queue: mp.Queue,
+    verbose: bool,
 ):
     i = 0
     batch = []
@@ -195,7 +203,7 @@ def _worker(
             batch = []
         i += 1
 
-        if stop(stopping_conditions, i):
+        if stop(stopping_conditions, i, verbose):
             if len(batch) > 0:
                 output_queue.put(batch)
             return
